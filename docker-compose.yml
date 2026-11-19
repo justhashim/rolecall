@@ -14,5 +14,16 @@ services:
       interval: 2s
       retries: 30
 
+  # Re-crawls the feed every hour, which is how often Arbeitnow updates it.
+  ingest:
+    build: .
+    profiles: ["worker"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://rolecall:rolecall@db:5432/rolecall
+    command: ["sh", "-c", "while true; do rolecall ingest; sleep 3600; done"]
+
 volumes:
   pgdata:
