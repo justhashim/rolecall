@@ -27,7 +27,7 @@ CANDIDATES = 50
 SAVED_WEIGHT, SKIPPED_WEIGHT = 0.35, 0.2
 RERANK_MODEL = "BAAI/bge-reranker-v2-m3-int8"
 
-_WORD = re.compile(r"[\w+#.]+", re.UNICODE)
+_WORD = re.compile(r"[\w+#.']+", re.UNICODE)
 
 
 @dataclass
