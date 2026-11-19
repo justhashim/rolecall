@@ -1,4 +1,5 @@
 from rolecall import db, search
+from evals.retrieval_eval import mrr, ndcg, recall
 
 from .conftest import job_id
 
@@ -42,3 +43,10 @@ def test_skipped_jobs_are_hidden_and_saved_jobs_pull_results(seeded):
     assert "py-backend" not in results
     assert results[0] == "data-eng"
 
+
+def test_metrics():
+    labels = {"a": 2, "b": 1, "c": 0}
+    assert ndcg(["a", "b"], labels) == 1.0
+    assert ndcg(["b", "a"], labels) < 1.0
+    assert recall(["a", "x"], labels) == 0.5
+    assert mrr(["b", "a"], labels) == 0.5
