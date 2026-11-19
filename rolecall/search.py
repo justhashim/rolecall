@@ -116,7 +116,7 @@ def personalise(qvec: np.ndarray, saved: np.ndarray | None, skipped: np.ndarray 
 def _reranker():
     from fastembed.rerank.cross_encoder import TextCrossEncoder
 
-    return TextCrossEncoder(RERANK_MODEL)
+    return TextCrossEncoder(RERANK_MODEL, cache_dir=embed.CACHE_DIR)
 
 
 def rerank(conn: psycopg.Connection, query: str, ids: list[int]) -> list[int]:

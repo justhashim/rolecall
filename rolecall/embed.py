@@ -1,8 +1,13 @@
 """Local embeddings. No API key, no per-call cost, same vectors every run."""
 
+import os
 from functools import lru_cache
+from pathlib import Path
 
 import numpy as np
+
+# fastembed defaults to /tmp, which is often a small tmpfs. Models are ~0.2 to 0.6 GB.
+CACHE_DIR = os.getenv("FASTEMBED_CACHE_PATH", str(Path.home() / ".cache" / "fastembed"))
 
 # Multilingual on purpose: most of the feed is German, most queries are English.
 # evals/retrieval_eval.py compares it against an English-only model of the same size.
@@ -21,7 +26,7 @@ def job_text(job: dict) -> str:
 def _model(name: str):
     from fastembed import TextEmbedding
 
-    return TextEmbedding(name)
+    return TextEmbedding(name, cache_dir=CACHE_DIR)
 
 
 def embed(texts: list[str], model: str = MODEL) -> np.ndarray:
