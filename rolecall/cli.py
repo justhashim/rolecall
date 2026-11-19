@@ -52,7 +52,7 @@ def main() -> None:
     sub = p.add_subparsers(required=True)
 
     s = sub.add_parser("ingest", help="crawl the feed and sync the jobs table")
-    s.add_argument("--max-pages", type=int, default=10)
+    s.add_argument("--max-pages", type=int, default=50, help="stop after this many pages (300 postings each); default reaches the end of the feed")
     s.set_defaults(fn=cmd_ingest)
 
     s = sub.add_parser("search", help="search open jobs")
