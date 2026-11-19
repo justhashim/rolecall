@@ -1,0 +1,27 @@
+name: test
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: rolecall
+          POSTGRES_PASSWORD: rolecall
+          POSTGRES_DB: rolecall
+        ports:
+          - 5544:5432
+        options: >-
+          --health-cmd "pg_isready -U rolecall"
+          --health-interval 2s
+          --health-retries 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/fastembed
+          key: fastembed-${{ hashFiles('rolecall/embed.py') }}
+      - run: uv sync
+      - run: uv run pytest -q
