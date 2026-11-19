@@ -97,8 +97,8 @@ def feedback(conn: psycopg.Connection, user_id: str) -> tuple[np.ndarray | None,
         "select i.job_id, i.action, j.embedding from interactions i join jobs j on j.id = i.job_id where i.user_id = %s",
         (user_id,),
     ).fetchall()
-    saved = [np.asarray(r["embedding"]) for r in rows if r["action"] == "saved"]
-    skipped = [np.asarray(r["embedding"]) for r in rows if r["action"] == "skipped"]
+    saved = [r["embedding"].to_numpy() for r in rows if r["action"] == "saved"]
+    skipped = [r["embedding"].to_numpy() for r in rows if r["action"] == "skipped"]
     skipped_ids = [r["job_id"] for r in rows if r["action"] == "skipped"]
     return (np.mean(saved, axis=0) if saved else None, np.mean(skipped, axis=0) if skipped else None, skipped_ids)
 
