@@ -1,5 +1,6 @@
 import argparse
 import json
+import sys
 
 from . import db, ingest, search
 
@@ -19,6 +20,21 @@ def cmd_search(args) -> None:
     for job in search.fetch_jobs(conn, ids):
         where = "remote" if job["remote"] else job["location"]
         print(f"{job['id']:>6}  {job['title'][:70]:<70}  {job['company'][:28]:<28}  {where}")
+
+
+def cmd_chat(args) -> None:
+    from .agent import Agent
+    from .llm import LLM
+
+    conn = db.connect()
+    db.migrate(conn)
+    agent = Agent(conn, LLM.from_env(), user_id=args.user, verbose=args.verbose)
+    print("rolecall. Tell it what you're looking for. Ctrl-D to quit.")
+    for line in sys.stdin if not sys.stdin.isatty() else iter(lambda: input("> "), None):
+        if not line.strip():
+            continue
+        result = agent.ask(line.strip())
+        print(result.render(conn))
 
 
 def cmd_stats(_args) -> None:
@@ -48,6 +64,11 @@ def main() -> None:
     s.add_argument("--limit", type=int, default=10)
     s.add_argument("--rerank", action="store_true")
     s.set_defaults(fn=cmd_search)
+
+    s = sub.add_parser("chat", help="talk to the agent")
+    s.add_argument("--user", default="me")
+    s.add_argument("-v", "--verbose", action="store_true")
+    s.set_defaults(fn=cmd_chat)
 
     s = sub.add_parser("stats", help="index size and recent ingest runs")
     s.set_defaults(fn=cmd_stats)
