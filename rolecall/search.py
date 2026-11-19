@@ -4,6 +4,7 @@ keyword  Postgres full-text, terms OR-ed so one missing word doesn't zero the re
 vector   pgvector cosine distance on an HNSW index.
 hybrid   both lists fused with reciprocal rank fusion (RRF). Rank-based, so the two
          scores never have to be put on the same scale.
+rerank   optional cross-encoder pass over the fused top N.
 
 With a user id, saved jobs pull the query vector towards them and skipped jobs push it
 away (Rocchio feedback), and skipped jobs are filtered out.
@@ -11,6 +12,7 @@ away (Rocchio feedback), and skipped jobs are filtered out.
 
 import re
 from dataclasses import dataclass, field
+from functools import lru_cache
 from typing import Literal
 
 import numpy as np
@@ -23,6 +25,7 @@ Mode = Literal["keyword", "vector", "hybrid"]
 RRF_K = 60
 CANDIDATES = 50
 SAVED_WEIGHT, SKIPPED_WEIGHT = 0.35, 0.2
+RERANK_MODEL = "BAAI/bge-reranker-v2-m3-int8"
 
 _WORD = re.compile(r"[\w+#.]+", re.UNICODE)
 
@@ -109,6 +112,22 @@ def personalise(qvec: np.ndarray, saved: np.ndarray | None, skipped: np.ndarray 
     return v / np.linalg.norm(v)
 
 
+@lru_cache(maxsize=1)
+def _reranker():
+    from fastembed.rerank.cross_encoder import TextCrossEncoder
+
+    return TextCrossEncoder(RERANK_MODEL)
+
+
+def rerank(conn: psycopg.Connection, query: str, ids: list[int]) -> list[int]:
+    if not ids:
+        return ids
+    rows = {r["id"]: r for r in conn.execute("select id, title, tags, location, description from jobs where id = any(%s)", (ids,))}
+    docs = [embed.job_text(rows[i]) for i in ids]
+    scores = list(_reranker().rerank(query, docs))
+    return [i for _, i in sorted(zip(scores, ids), key=lambda p: -p[0])]
+
+
 def search_ids(
     conn: psycopg.Connection,
     query: str,
@@ -117,6 +136,8 @@ def search_ids(
     filters: Filters | None = None,
     user_id: str | None = None,
     limit: int = 10,
+    use_rerank: bool = False,
+    rerank_depth: int = 30,
 ) -> list[int]:
     filters = filters or Filters()
     qvec = None
@@ -134,6 +155,8 @@ def search_ids(
     else:
         ids = rrf(keyword_ids(conn, query, filters), vector_ids(conn, qvec, filters))
 
+    if use_rerank:
+        ids = rerank(conn, query, ids[:rerank_depth]) + ids[rerank_depth:]
     return ids[:limit]
 
 
