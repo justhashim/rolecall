@@ -3,6 +3,7 @@ name = "rolecall"
 version = "0.1.0"
 description = "Job-matching agent over a live jobs index: hybrid search on Postgres + pgvector, grounded tool-calling LLM, retrieval evals."
 readme = "README.md"
+license = "MIT"
 requires-python = ">=3.13"
 dependencies = [
     "fastembed>=0.5",
