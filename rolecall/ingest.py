@@ -9,6 +9,7 @@ reached the last page: a partial crawl can't tell "gone" from "not fetched yet".
 import hashlib
 import html
 import re
+import sys
 import time
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
@@ -55,13 +56,28 @@ def content_hash(job: dict) -> str:
     return hashlib.sha256("\x1f".join(fields).encode()).hexdigest()
 
 
-def fetch(max_pages: int = 10, delay: float = 1.0) -> tuple[list[dict], bool]:
+def _get(client: httpx.Client, url: str, retries: int = 4) -> httpx.Response | None:
+    """GET with backoff on 429/5xx. None means give up on this crawl, not crash it."""
+    for attempt in range(retries):
+        resp = client.get(url)
+        if resp.status_code != 429 and resp.status_code < 500:
+            resp.raise_for_status()
+            return resp
+        retry_after = resp.headers.get("retry-after", "")
+        wait = float(retry_after) if retry_after.isdigit() else 5 * 2**attempt
+        print(f"ingest: {resp.status_code} on {url}, waiting {wait:.0f}s", file=sys.stderr)
+        time.sleep(min(wait, 120))
+    return None
+
+
+def fetch(max_pages: int = 10, delay: float = 1.5) -> tuple[list[dict], bool]:
     """Returns (raw postings, whether the crawl reached the last page)."""
     jobs, url, pages = [], FEED_URL, 0
     with httpx.Client(timeout=30, headers={"User-Agent": "rolecall-ingest"}) as client:
         while url and pages < max_pages:
-            resp = client.get(url)
-            resp.raise_for_status()
+            resp = _get(client, url)
+            if resp is None:
+                break  # rate-limited for good: keep what we have, mark the crawl incomplete
             body = resp.json()
             jobs.extend(body["data"])
             url = (body.get("links") or {}).get("next")
