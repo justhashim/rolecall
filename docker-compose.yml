@@ -1,0 +1,18 @@
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: rolecall
+      POSTGRES_PASSWORD: rolecall
+      POSTGRES_DB: rolecall
+    ports:
+      - "5544:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rolecall"]
+      interval: 2s
+      retries: 30
+
+volumes:
+  pgdata:
