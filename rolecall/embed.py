@@ -29,12 +29,18 @@ def _model(name: str):
     return TextEmbedding(name, cache_dir=CACHE_DIR)
 
 
-def embed(texts: list[str], model: str = MODEL) -> np.ndarray:
-    if not texts:
-        return np.zeros((0, DIM), dtype=np.float32)
-    vecs = np.array(list(_model(model).embed(texts, batch_size=64)), dtype=np.float32)
+def _normalise(vecs) -> np.ndarray:
+    vecs = np.array(list(vecs), dtype=np.float32)
     return vecs / np.linalg.norm(vecs, axis=1, keepdims=True)
 
 
+def embed(texts: list[str], model: str = MODEL) -> np.ndarray:
+    """Documents. passage_embed adds whatever prefix the model was trained with (e5, gemma...)."""
+    if not texts:
+        return np.zeros((0, DIM), dtype=np.float32)
+    return _normalise(_model(model).passage_embed(texts, batch_size=32))
+
+
 def embed_one(text: str, model: str = MODEL) -> np.ndarray:
-    return embed([text], model)[0]
+    """A search query. Asymmetric models embed queries differently from documents."""
+    return _normalise(_model(model).query_embed(text))[0]
